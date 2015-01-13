@@ -2348,9 +2348,9 @@ class UnitOfWork implements PropertyChangedListener
      */
     public function getCommitOrderCalculator()
     {
-        if ($this->commitOrderCalculator === null) {
+        //if ($this->commitOrderCalculator === null) {
             $this->commitOrderCalculator = new Internal\CommitOrderCalculator;
-        }
+        //}
 
         return $this->commitOrderCalculator;
     }

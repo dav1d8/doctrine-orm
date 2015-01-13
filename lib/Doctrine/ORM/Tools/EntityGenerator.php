@@ -961,7 +961,7 @@ public function __construct()
 
         foreach ($metadata->associationMappings as $associationMapping) {
             if ($associationMapping['type'] & ClassMetadataInfo::TO_ONE) {
-                $nullable = $this->isAssociationIsNullable($associationMapping) ? 'null' : null;
+                $nullable = 'null';//$this->isAssociationIsNullable($associationMapping) ? 'null' : null;
                 if ($code = $this->generateEntityStubMethod($metadata, 'set', $associationMapping['fieldName'], $associationMapping['targetEntity'], $nullable)) {
                     $methods[] = $code;
                 }

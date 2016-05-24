@@ -520,6 +520,9 @@ class UnitOfWork implements PropertyChangedListener
      */
     public function computeChangeSet(ClassMetadata $class, $entity)
     {
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+        $stopwatch->start(sprintf('computeChangeSet: %s', $class->getName()));
+        
         $oid = spl_object_hash($entity);
 
         if (isset($this->readOnlyObjects[$oid])) {
@@ -696,6 +699,8 @@ class UnitOfWork implements PropertyChangedListener
                 }
             }
         }
+        
+        $stopwatch->stop(sprintf('computeChangeSet: %s', $class->getName()));
     }
 
     /**

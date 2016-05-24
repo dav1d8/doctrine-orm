@@ -38,6 +38,8 @@ use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Event\ListenersInvoker;
 
+use Naex\Bundle\FrameworkBundle\DependencyInjection\ContainerService;
+
 /**
  * The UnitOfWork is responsible for tracking changes to objects during an
  * "object-level" transaction and for writing out changes to the database

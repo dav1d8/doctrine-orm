@@ -21,7 +21,6 @@ namespace Doctrine\ORM;
 
 use Exception;
 use InvalidArgumentException;
-use Naex\Framework\SystemNoticeBundle\Service\SystemNotice;
 use UnexpectedValueException;
 
 use Doctrine\Common\Collections\ArrayCollection;
@@ -39,6 +38,7 @@ use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Event\ListenersInvoker;
 
+use Naex\Framework\SystemNoticeBundle\Service\SystemNotice;
 use Naex\Bundle\FrameworkBundle\DependencyInjection\ContainerService;
 
 /**
@@ -715,6 +715,9 @@ class UnitOfWork implements PropertyChangedListener
      */
     public function computeChangeSets()
     {
+        //Naex: Get environment
+        $env = ContainerService::getContainer()->getKernel()->getEnvironment();
+
         // Compute changes for INSERTed entities first. This must always happen.
         $this->computeScheduleInsertsChangeSets();
 
@@ -756,7 +759,7 @@ class UnitOfWork implements PropertyChangedListener
                     $this->computeChangeSet($class, $entity);
 
 					//Naex: Send devNotice if we forget to call persist on entity
-                    if (!isset($this->scheduledForDirtyCheck[$className][$oid]) && isset($this->entityChangeSets[$oid])){
+                    if ($env === 'dev' && !isset($this->scheduledForDirtyCheck[$className][$oid]) && isset($this->entityChangeSets[$oid])){
                         SystemNotice::addDevNotice('Missing $persist', sprintf('%s:%s, changeSet: %s', $className, $entity->getId(), json_encode($this->entityChangeSets[$oid])));
                     }
                 }

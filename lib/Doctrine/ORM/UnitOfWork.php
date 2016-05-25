@@ -21,6 +21,7 @@ namespace Doctrine\ORM;
 
 use Exception;
 use InvalidArgumentException;
+use Naex\Framework\SystemNoticeBundle\Service\SystemNotice;
 use UnexpectedValueException;
 
 use Doctrine\Common\Collections\ArrayCollection;
@@ -753,6 +754,11 @@ class UnitOfWork implements PropertyChangedListener
 
                 if ( ! isset($this->entityInsertions[$oid]) && isset($this->entityStates[$oid])) {
                     $this->computeChangeSet($class, $entity);
+
+					//Naex: Send devNotice if we forget to call persist on entity
+                    if (!isset($this->scheduledForDirtyCheck[$className][$oid]) && isset($this->entityChangeSets[$oid])){
+                        SystemNotice::addDevNotice('Missing $persist', sprintf('%s:%s, changeSet: %s', $className, $entity->getId(), json_encode($this->entityChangeSets[$oid])));
+                    }
                 }
             }
         }
@@ -1625,9 +1631,11 @@ class UnitOfWork implements PropertyChangedListener
         switch ($entityState) {
             case self::STATE_MANAGED:
                 // Nothing to do, except if policy is "deferred explicit"
-                if ($class->isChangeTrackingDeferredExplicit()) {
+
+				//Naex: We need scheduled list to compare it later
+                //if ($class->isChangeTrackingDeferredExplicit()) {
                     $this->scheduleForDirtyCheck($entity);
-                }
+                //}
                 break;
 
             case self::STATE_NEW:
@@ -1930,9 +1938,10 @@ class UnitOfWork implements PropertyChangedListener
                 }
             }
 
-            if ($class->isChangeTrackingDeferredExplicit()) {
+            //Naex: We need scheduled list to compare it later
+            //if ($class->isChangeTrackingDeferredExplicit()) {
                 $this->scheduleForDirtyCheck($entity);
-            }
+            //}
         }
 
         if ($prevManagedCopy !== null) {

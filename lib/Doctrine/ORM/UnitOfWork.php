@@ -401,10 +401,16 @@ class UnitOfWork implements PropertyChangedListener
      */
     private function computeScheduleInsertsChangeSets()
     {
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+
         foreach ($this->entityInsertions as $entity) {
+            $stopwatch->start(sprintf('computeChangeSet: %s', get_class($entity)));
+
             $class = $this->em->getClassMetadata(get_class($entity));
 
             $this->computeChangeSet($class, $entity);
+
+            $stopwatch->stop(sprintf('computeChangeSet: %s', get_class($entity)));
         }
     }
 
@@ -448,12 +454,17 @@ class UnitOfWork implements PropertyChangedListener
             return;
         }
 
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+        $stopwatch->start(sprintf('computeChangeSet: %s', $class->getName()));
+
         // Only MANAGED entities that are NOT SCHEDULED FOR INSERTION are processed here.
         $oid = spl_object_hash($entity);
 
         if ( ! isset($this->entityInsertions[$oid]) && isset($this->entityStates[$oid])) {
             $this->computeChangeSet($class, $entity);
         }
+
+        $stopwatch->stop(sprintf('computeChangeSet: %s', $class->getName()));
     }
 
     /**
@@ -523,9 +534,6 @@ class UnitOfWork implements PropertyChangedListener
      */
     public function computeChangeSet(ClassMetadata $class, $entity)
     {
-        $stopwatch = ContainerService::getContainer()->get('stopwatch');
-        $stopwatch->start(sprintf('computeChangeSet: %s', $class->getName()));
-        
         $oid = spl_object_hash($entity);
 
         if (isset($this->readOnlyObjects[$oid])) {
@@ -702,8 +710,6 @@ class UnitOfWork implements PropertyChangedListener
                 }
             }
         }
-        
-        $stopwatch->stop(sprintf('computeChangeSet: %s', $class->getName()));
     }
 
     /**
@@ -721,8 +727,12 @@ class UnitOfWork implements PropertyChangedListener
         // Compute changes for INSERTed entities first. This must always happen.
         $this->computeScheduleInsertsChangeSets();
 
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+
         // Compute changes for other MANAGED entities. Change tracking policies take effect here.
         foreach ($this->identityMap as $className => $entities) {
+            $stopwatch->start(sprintf('computeChangeSet: %s', $className));
+
             $class = $this->em->getClassMetadata($className);
 
             // Skip class if instances are read-only
@@ -764,6 +774,8 @@ class UnitOfWork implements PropertyChangedListener
                     }
                 }
             }
+
+            $stopwatch->stop(sprintf('computeChangeSet: %s', $className));
         }
     }
 

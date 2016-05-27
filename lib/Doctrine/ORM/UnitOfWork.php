@@ -769,7 +769,7 @@ class UnitOfWork implements PropertyChangedListener
                     $this->computeChangeSet($class, $entity);
 
 					//Naex: Send devNotice if we forget to call persist on entity
-                    if ($env === 'dev' && !isset($this->scheduledForDirtyCheck[$className][$oid]) && isset($this->entityChangeSets[$oid])){
+                    if ($env === 'dev' && !isset($this->scheduledForDirtyCheck[$className][$oid]) && isset($this->entityChangeSets[$oid]) && !empty($this->entityChangeSets[$oid])){
                         SystemNotice::addDevNotice('Missing $persist', sprintf('%s:%s, changeSet: %s', $className, $entity->getId(), json_encode($this->entityChangeSets[$oid])));
                     }
                 }

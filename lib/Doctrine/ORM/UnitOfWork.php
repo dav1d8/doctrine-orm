@@ -38,6 +38,9 @@ use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Event\ListenersInvoker;
 
+use Naex\Framework\SystemNoticeBundle\Service\SystemNotice;
+use Naex\Bundle\FrameworkBundle\DependencyInjection\ContainerService;
+
 /**
  * The UnitOfWork is responsible for tracking changes to objects during an
  * "object-level" transaction and for writing out changes to the database
@@ -398,10 +401,16 @@ class UnitOfWork implements PropertyChangedListener
      */
     private function computeScheduleInsertsChangeSets()
     {
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+
         foreach ($this->entityInsertions as $entity) {
+            $stopwatch->start(sprintf('computeChangeSet: %s', get_class($entity)));
+
             $class = $this->em->getClassMetadata(get_class($entity));
 
             $this->computeChangeSet($class, $entity);
+
+            $stopwatch->stop(sprintf('computeChangeSet: %s', get_class($entity)));
         }
     }
 
@@ -445,12 +454,17 @@ class UnitOfWork implements PropertyChangedListener
             return;
         }
 
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+        $stopwatch->start(sprintf('computeChangeSet: %s', $class->getName()));
+
         // Only MANAGED entities that are NOT SCHEDULED FOR INSERTION are processed here.
         $oid = spl_object_hash($entity);
 
         if ( ! isset($this->entityInsertions[$oid]) && isset($this->entityStates[$oid])) {
             $this->computeChangeSet($class, $entity);
         }
+
+        $stopwatch->stop(sprintf('computeChangeSet: %s', $class->getName()));
     }
 
     /**
@@ -707,11 +721,18 @@ class UnitOfWork implements PropertyChangedListener
      */
     public function computeChangeSets()
     {
+        //Naex: Get environment
+        $env = ContainerService::getContainer()->getKernel()->getEnvironment();
+
         // Compute changes for INSERTed entities first. This must always happen.
         $this->computeScheduleInsertsChangeSets();
 
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+
         // Compute changes for other MANAGED entities. Change tracking policies take effect here.
         foreach ($this->identityMap as $className => $entities) {
+            $stopwatch->start(sprintf('computeChangeSet: %s', $className));
+
             $class = $this->em->getClassMetadata($className);
 
             // Skip class if instances are read-only
@@ -746,8 +767,15 @@ class UnitOfWork implements PropertyChangedListener
 
                 if ( ! isset($this->entityInsertions[$oid]) && isset($this->entityStates[$oid])) {
                     $this->computeChangeSet($class, $entity);
+
+					//Naex: Send devNotice if we forget to call persist on entity
+                    if ($env === 'dev' && !isset($this->scheduledForDirtyCheck[$className][$oid]) && isset($this->entityChangeSets[$oid]) && !empty($this->entityChangeSets[$oid])){
+                        SystemNotice::addDevNotice('Missing $persist', sprintf('%s:%s, changeSet: %s', $className, $entity->getId(), json_encode($this->entityChangeSets[$oid])));
+                    }
                 }
             }
+
+            $stopwatch->stop(sprintf('computeChangeSet: %s', $className));
         }
     }
 
@@ -1618,9 +1646,11 @@ class UnitOfWork implements PropertyChangedListener
         switch ($entityState) {
             case self::STATE_MANAGED:
                 // Nothing to do, except if policy is "deferred explicit"
-                if ($class->isChangeTrackingDeferredExplicit()) {
+
+				//Naex: We need scheduled list to compare it later
+                //if ($class->isChangeTrackingDeferredExplicit()) {
                     $this->scheduleForDirtyCheck($entity);
-                }
+                //}
                 break;
 
             case self::STATE_NEW:
@@ -1923,9 +1953,10 @@ class UnitOfWork implements PropertyChangedListener
                 }
             }
 
-            if ($class->isChangeTrackingDeferredExplicit()) {
+            //Naex: We need scheduled list to compare it later
+            //if ($class->isChangeTrackingDeferredExplicit()) {
                 $this->scheduleForDirtyCheck($entity);
-            }
+            //}
         }
 
         if ($prevManagedCopy !== null) {

@@ -326,12 +326,16 @@ class UnitOfWork implements PropertyChangedListener
 
         $this->dispatchOnFlushEvent();
 
+        $stopwatch = ContainerService::getContainer()->get('stopwatch');
+        $stopwatch->start('UnitOfWork: calculateCommitOrder');
         // Now we need a commit order to maintain referential integrity
         $commitOrder = $this->getCommitOrder();
+        $stopwatch->stop('UnitOfWork: calculateCommitOrder');
 
         $conn = $this->em->getConnection();
         $conn->beginTransaction();
 
+        $stopwatch->start('UnitOfWork: Execute db queries and commit');
         try {
             if ($this->entityInsertions) {
                 foreach ($commitOrder as $class) {
@@ -373,6 +377,7 @@ class UnitOfWork implements PropertyChangedListener
 
             throw $e;
         }
+        $stopwatch->stop('UnitOfWork: Execute db queries and commit');
 
         // Take new snapshots from visited collections
         foreach ($this->visitedCollections as $coll) {
